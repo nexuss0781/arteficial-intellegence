@@ -1,72 +1,203 @@
 #include "bio_engine.h"
 #include <cmath>
 #include <iostream>
+#include <algorithm> // for std::sort, std::upper_bound
+#include <numeric>   // for std::iota
 
 namespace genesis {
 
 // -----------------------------------------------------------------------------
-// Initialization
+// Initialization (Phase I - Legacy)
 // -----------------------------------------------------------------------------
 void BioEngine::init(size_t neuron_count, size_t synapse_density_per_neuron, uint64_t seed) {
-    neuron_count_ = neuron_count;
-    rng_ = std::make_unique<utils::FastRNG>(seed);
-    ctx_.rng_seed = seed;
+    // Legacy support: redirects to structured logic using a single "Global" layer
+    init_structured(neuron_count, neuron_count * synapse_density_per_neuron, seed);
+    create_layer("Global", neuron_count, 2); // Type 2 = Cortex
     
-    // FIX: Start tick at 100 to prevents STDP artifacts during first few ms.
-    // If tick starts at 0, diff = 0 - 0 = 0, triggering immediate LTD.
-    ctx_.current_tick = 100; 
-
-    // 1. Resize Neuron Arrays (SoA)
-    neurons_.resize(neuron_count);
-
-    // Initialize Neurons to Resting State
-    for (size_t i = 0; i < neuron_count; ++i) {
-        neurons_.membrane_potential[i] = V_REST_MV;
-        neurons_.recovery_variable[i] = 0.0f;
-        neurons_.atp_level[i] = ATP_MAX;
-        neurons_.refractory_timer[i] = 0;
-        neurons_.has_fired[i] = false;
-        neurons_.last_spike_time[i] = 0; // 0 represents "never/long ago" relative to tick 100
-        neurons_.avg_firing_rate[i] = 0.0f;
-    }
-
-    // 2. Generate Topology (Random Connectivity)
+    // Generate Random Topology (Legacy Phase I Logic)
     size_t est_synapse_count = neuron_count * synapse_density_per_neuron;
-    if (est_synapse_count > MAX_SYNAPSES) {
-        est_synapse_count = MAX_SYNAPSES;
-    }
+    if (est_synapse_count > MAX_SYNAPSES) est_synapse_count = MAX_SYNAPSES;
 
-    synapses_.resize(est_synapse_count);
-    topology_.resize(neuron_count);
-
-    size_t syn_idx = 0;
+    synapse_cursor_ = 0; // Reset
     
+    // Create random connections mimicking Phase I
+    // We manually fill the synapse block, then call bake_topology()
     for (size_t pre_id = 0; pre_id < neuron_count; ++pre_id) {
-        topology_.outgoing_start[pre_id] = static_cast<uint32_t>(syn_idx);
-        uint32_t count = 0;
-
         size_t n_connections = synapse_density_per_neuron;
-        if (syn_idx + n_connections > est_synapse_count) {
-            n_connections = est_synapse_count - syn_idx;
+        if (synapse_cursor_ + n_connections > est_synapse_count) {
+            n_connections = est_synapse_count - synapse_cursor_;
         }
 
         for (size_t c = 0; c < n_connections; ++c) {
             uint32_t post_id = rng_->next_int(0, static_cast<int>(neuron_count - 1));
             if (post_id == pre_id) post_id = (post_id + 1) % neuron_count;
 
-            synapses_.pre_indices[syn_idx]  = static_cast<uint32_t>(pre_id);
-            synapses_.post_indices[syn_idx] = post_id;
+            synapses_.pre_indices[synapse_cursor_]  = static_cast<uint32_t>(pre_id);
+            synapses_.post_indices[synapse_cursor_] = post_id;
             
-            synapses_.weights[syn_idx]            = rng_->next_float() * 0.1f + 0.01f; 
-            synapses_.eligibility_traces[syn_idx] = 0.0f;
-            synapses_.is_inhibitory[syn_idx]      = (rng_->next_float() < 0.2f);
+            // Phase I Random Weights
+            synapses_.weights[synapse_cursor_]            = rng_->next_float() * 0.1f + 0.01f; 
+            synapses_.eligibility_traces[synapse_cursor_] = 0.0f;
+            synapses_.is_inhibitory[synapse_cursor_]      = (rng_->next_float() < 0.2f);
+            
+            // Phase II: Default Delay (Min 1 tick)
+            synapses_.delays[synapse_cursor_]             = 1; 
 
-            syn_idx++;
-            count++;
+            synapse_cursor_++;
         }
-        topology_.outgoing_count[pre_id] = count;
+        if (synapse_cursor_ >= est_synapse_count) break;
+    }
+
+    // Important: Build the CSR index so propagate_spikes works
+    bake_topology();
+}
+
+// -----------------------------------------------------------------------------
+// Initialization (Phase II - Structured)
+// -----------------------------------------------------------------------------
+void BioEngine::init_structured(size_t max_neurons, size_t max_synapses, uint64_t seed) {
+    neuron_count_ = max_neurons; // This is actually capacity in this context
+    rng_ = std::make_unique<utils::FastRNG>(seed);
+    ctx_.rng_seed = seed;
+    
+    // Temporal buffer start
+    ctx_.current_tick = 100; 
+
+    // Resize Arrays
+    neurons_.resize(max_neurons);
+    synapses_.resize(max_synapses);
+    topology_.resize(max_neurons);
+
+    // Default initialization
+    for (size_t i = 0; i < max_neurons; ++i) {
+        neurons_.membrane_potential[i] = V_REST_MV;
+        neurons_.recovery_variable[i] = 0.0f;
+        neurons_.atp_level[i] = ATP_MAX;
+        neurons_.refractory_timer[i] = 0;
+        neurons_.has_fired[i] = false;
+        neurons_.last_spike_time[i] = 0; 
+        neurons_.avg_firing_rate[i] = 0.0f;
         
-        if (syn_idx >= est_synapse_count) break;
+        // Phase II defaults
+        neurons_.pos_x[i] = 0.0f;
+        neurons_.pos_y[i] = 0.0f;
+        neurons_.layer_id[i] = 0;
+    }
+
+    neuron_cursor_ = 0;
+    synapse_cursor_ = 0;
+    layers_.clear();
+    delay_queue_.clear();
+}
+
+uint32_t BioEngine::create_layer(const std::string& name, size_t count, uint8_t layer_type) {
+    if (neuron_cursor_ + count > neurons_.membrane_potential.size()) {
+        std::cerr << "[BioEngine] Error: Neuron capacity exceeded creating layer " << name << std::endl;
+        return 0;
+    }
+
+    uint32_t start_idx = static_cast<uint32_t>(neuron_cursor_);
+    
+    // Register Layer
+    layers_[name] = { start_idx, static_cast<uint32_t>(count), layer_type };
+
+    // Initialize Metadata
+    for (size_t i = 0; i < count; ++i) {
+        neurons_.layer_id[start_idx + i] = layer_type;
+    }
+
+    neuron_cursor_ += count;
+    return start_idx;
+}
+
+size_t BioEngine::connect_full(const std::string& pre_name, const std::string& post_name, 
+                               float weight_scale, uint8_t delay_ticks) {
+    if (layers_.find(pre_name) == layers_.end() || layers_.find(post_name) == layers_.end()) {
+        return 0;
+    }
+
+    LayerMeta pre = layers_[pre_name];
+    LayerMeta post = layers_[post_name];
+
+    size_t created = 0;
+
+    for (uint32_t i = 0; i < pre.count; ++i) {
+        for (uint32_t j = 0; j < post.count; ++j) {
+            if (synapse_cursor_ >= synapses_.weights.size()) break;
+
+            synapses_.pre_indices[synapse_cursor_]  = pre.start_index + i;
+            synapses_.post_indices[synapse_cursor_] = post.start_index + j;
+            
+            // Random small variation in weight
+            synapses_.weights[synapse_cursor_]      = weight_scale * (0.9f + rng_->next_float() * 0.2f);
+            synapses_.eligibility_traces[synapse_cursor_] = 0.0f;
+            
+            // Default to Excitatory for generic connect, assume inhibition is handled by specific calls
+            synapses_.is_inhibitory[synapse_cursor_] = false; 
+            
+            // Constraint: Min delay 1
+            synapses_.delays[synapse_cursor_] = (delay_ticks > 0) ? delay_ticks : 1;
+
+            synapse_cursor_++;
+            created++;
+        }
+    }
+    return created;
+}
+
+void BioEngine::bake_topology() {
+    // 1. Reset Topology
+    std::fill(topology_.outgoing_count.begin(), topology_.outgoing_count.end(), 0);
+    std::fill(topology_.outgoing_start.begin(), topology_.outgoing_start.end(), 0);
+
+    // 2. Sort Synapses by Pre-Index to ensure CSR contiguity
+    // Since we maintain SoA, we need to sort parallel arrays.
+    // We create a permutation index.
+    size_t count = synapse_cursor_;
+    std::vector<size_t> p(count);
+    std::iota(p.begin(), p.end(), 0);
+
+    // Sort index based on pre_indices
+    std::sort(p.begin(), p.end(), [&](size_t a, size_t b) {
+        return synapses_.pre_indices[a] < synapses_.pre_indices[b];
+    });
+
+    // Apply permutation to all synapse arrays (In-place cycle sort or copy)
+    // For simplicity/safety, we'll use temporary buffers.
+    // Given memory constraints, we'll just allocate temp vectors. 
+    // Optimization: If already sorted (sequential add), this is fast.
+    
+    SynapseBlock sorted_syn;
+    sorted_syn.resize(count);
+
+    for (size_t i = 0; i < count; ++i) {
+        size_t src = p[i];
+        sorted_syn.pre_indices[i]        = synapses_.pre_indices[src];
+        sorted_syn.post_indices[i]       = synapses_.post_indices[src];
+        sorted_syn.weights[i]            = synapses_.weights[src];
+        sorted_syn.eligibility_traces[i] = synapses_.eligibility_traces[src];
+        sorted_syn.is_inhibitory[i]      = synapses_.is_inhibitory[src];
+        sorted_syn.delays[i]             = synapses_.delays[src];
+    }
+
+    // Move back
+    for (size_t i = 0; i < count; ++i) {
+        synapses_.pre_indices[i]        = sorted_syn.pre_indices[i];
+        synapses_.post_indices[i]       = sorted_syn.post_indices[i];
+        synapses_.weights[i]            = sorted_syn.weights[i];
+        synapses_.eligibility_traces[i] = sorted_syn.eligibility_traces[i];
+        synapses_.is_inhibitory[i]      = sorted_syn.is_inhibitory[i];
+        synapses_.delays[i]             = sorted_syn.delays[i];
+    }
+
+    // 3. Build CSR Index
+    // Now that pre_indices are sorted (e.g., 0,0,0,1,1,2...), we can find ranges.
+    for (size_t k = 0; k < count; ++k) {
+        uint32_t pre = synapses_.pre_indices[k];
+        if (topology_.outgoing_count[pre] == 0) {
+            topology_.outgoing_start[pre] = static_cast<uint32_t>(k);
+        }
+        topology_.outgoing_count[pre]++;
     }
 }
 
@@ -81,6 +212,10 @@ void BioEngine::tick() {
     ctx_.dopamine *= DOPAMINE_DECAY_FACTOR;
     if (ctx_.dopamine < 0.001f) ctx_.dopamine = 0.0f;
 
+    // 1. Phase II: Axonal Transmission
+    // Process spikes "in flight" from previous ticks
+    process_delayed_spikes();
+
     update_metabolism();
     update_synapses();
     
@@ -94,8 +229,36 @@ void BioEngine::tick() {
 // Physics Modules
 // -----------------------------------------------------------------------------
 
+void BioEngine::process_delayed_spikes() {
+    // Iterate backwards so we can erase efficiently? 
+    // Deque removal is slow. 
+    // Optimization: We iterate, update state, and retain only living spikes.
+    // Double-buffer approach or std::remove_if idiom.
+
+    auto it = std::remove_if(delay_queue_.begin(), delay_queue_.end(), 
+        [this](PendingSpike& s) {
+            // Decrement
+            if (s.ticks_remaining > 0) {
+                s.ticks_remaining--;
+            }
+
+            // Deliver?
+            if (s.ticks_remaining == 0) {
+                // Add to post-synaptic voltage
+                // Note: We access membrane_potential directly.
+                // This adds the "PSP" (Post Synaptic Potential)
+                neurons_.membrane_potential[s.target_neuron_id] += s.signal_strength;
+                return true; // Remove from queue (it's delivered)
+            }
+            return false; // Keep in queue
+        });
+
+    delay_queue_.erase(it, delay_queue_.end());
+}
+
 void BioEngine::update_metabolism() {
-    const size_t cnt = neuron_count_;
+    // Only update active neurons (up to cursor)
+    const size_t cnt = neuron_cursor_ > 0 ? neuron_cursor_ : neuron_count_;
     for (size_t i = 0; i < cnt; ++i) {
         float& atp = neurons_.atp_level[i];
         atp += ATP_REFILL_RATE;
@@ -104,7 +267,8 @@ void BioEngine::update_metabolism() {
 }
 
 void BioEngine::update_synapses() {
-    const size_t syn_count = synapses_.weights.size();
+    // Only update active synapses
+    const size_t syn_count = synapse_cursor_ > 0 ? synapse_cursor_ : synapses_.weights.size();
     const float da = ctx_.dopamine;
     const bool has_dopamine = (da > 0.0001f);
 
@@ -127,19 +291,30 @@ std::vector<uint32_t> BioEngine::integrate_and_fire() {
     std::vector<uint32_t> fired;
     fired.reserve(neuron_count_ / 10); 
 
-    const size_t cnt = neuron_count_;
+    const size_t cnt = neuron_cursor_ > 0 ? neuron_cursor_ : neuron_count_;
     
     for (size_t i = 0; i < cnt; ++i) {
         neurons_.has_fired[i] = false;
 
+        // Refractory Check
         if (neurons_.refractory_timer[i] > 0) {
             neurons_.refractory_timer[i]--;
             continue; 
         }
 
+        // Layer-specific logic (Phase II)
+        // Input Layer (0) does not integrate/leak like Cortex; it's driven externally.
+        if (neurons_.layer_id[i] == 0) {
+            // For Input Layer, Stimulus IS the voltage.
+            // If it exceeds threshold (injected by inject_stimulus), it fires.
+            // We just decay it massively so it doesn't sustain state without input?
+            // Or we treat it normally. Let's treat it normally for now.
+        }
+
         float& v = neurons_.membrane_potential[i];
         
         // Voltage Decay (Leak)
+        // Note: Incoming spikes (PSPs) were added in process_delayed_spikes() just before this.
         float v_diff = v - V_REST_MV;
         v_diff *= VOLTAGE_DECAY_FACTOR;
         v = V_REST_MV + v_diff;
@@ -159,11 +334,13 @@ void BioEngine::propagate_spikes(const std::vector<uint32_t>& firing_indices) {
     const float ach_gain = ctx_.acetylcholine;
     
     for (uint32_t pre_id : firing_indices) {
+        // 1. Neuron Reset
         neurons_.membrane_potential[pre_id] = V_RESET_MV;
         neurons_.refractory_timer[pre_id]   = REFRACTORY_TICKS;
         neurons_.atp_level[pre_id]          -= SPIKE_COST;
         neurons_.last_spike_time[pre_id]    = ctx_.current_tick;
 
+        // 2. Synaptic Transmission
         uint32_t start = topology_.outgoing_start[pre_id];
         uint32_t count = topology_.outgoing_count[pre_id];
 
@@ -172,26 +349,25 @@ void BioEngine::propagate_spikes(const std::vector<uint32_t>& firing_indices) {
             
             float w = synapses_.weights[k];
             bool inhib = synapses_.is_inhibitory[k];
+            uint8_t delay = synapses_.delays[k];
             
             float signal = w * ach_gain;
             if (inhib) signal = -signal;
 
-            neurons_.membrane_potential[post_id] += signal;
+            // Phase II Change:
+            // Instead of immediate update: neurons_.membrane_potential[post_id] += signal;
+            // We push to delay queue.
+            delay_queue_.push_back({post_id, signal, delay});
 
-            // B. STDP: Pre fired -> Increase Trace (LTP tag)
+            // B. STDP: Pre fired -> Increase Trace
             synapses_.eligibility_traces[k] += A_PLUS;
 
             // C. STDP: Cross-Check (LTD)
-            // Did Post fire recently?
             uint64_t post_fire_time = neurons_.last_spike_time[post_id];
             
-            // FIX: Only check if Post has actually fired since initialization (time > 0)
-            // This prevents "never fired" (0) from triggering LTD against current tick (100+)
             if (post_fire_time > 0) {
                 uint64_t diff = ctx_.current_tick - post_fire_time;
                 if (diff < static_cast<uint64_t>(STDP_WINDOW_MS)) {
-                    // Post fired JUST BEFORE Pre arrived.
-                    // This is Anti-Causal. Penalize trace.
                     synapses_.eligibility_traces[k] -= A_MINUS;
                 }
             }
@@ -199,11 +375,8 @@ void BioEngine::propagate_spikes(const std::vector<uint32_t>& firing_indices) {
     }
 }
 
-// -----------------------------------------------------------------------------
-// Interaction
-// -----------------------------------------------------------------------------
 void BioEngine::inject_stimulus(uint32_t neuron_id, float current_mv) {
-    if (neuron_id < neuron_count_) {
+    if (neuron_id < neurons_.membrane_potential.size()) {
         neurons_.membrane_potential[neuron_id] += current_mv;
     }
 }
