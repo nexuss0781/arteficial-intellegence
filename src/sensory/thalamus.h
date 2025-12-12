@@ -81,7 +81,7 @@ private:
     LayerMeta meta_;
     
     // Internal state: Exponential Moving Average of membrane potential for each neuron.
-    std.vector<float> activity_avg_;
+    std::vector<float> activity_avg_;
 };
 
 } // namespace genesis
