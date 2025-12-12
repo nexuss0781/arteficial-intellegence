@@ -17,7 +17,7 @@
 -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
 -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
 -- Found Threads: TRUE
--- Configuring done (4.2s)
+-- Configuring done (3.9s)
 -- Generating done (0.0s)
 -- Build files have been written to: /app/build
  [1m[Genesis] Compiling Bio-Digital Substrate... [0m
@@ -70,24 +70,24 @@ Running main() from /app/build/_deps/googletest-src/googletest/src/gtest_main.cc
   > 17021 synapses created.
 [Genesis] Network ready. Starting Simulation...
 Tick:      0 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:    100 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:    200 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
+Tick:    100 | Input Spikes:   1 | Cortex Spikes:   6 | DA: 0.00 | ACh: 1.00
+Tick:    200 | Input Spikes:   0 | Cortex Spikes:  13 | DA: 0.00 | ACh: 1.00
 Tick:    300 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Tick:    400 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:    500 | Input Spikes:   5 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:    600 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
+Tick:    500 | Input Spikes:   5 | Cortex Spikes:   8 | DA: 0.00 | ACh: 1.00
+Tick:    600 | Input Spikes:   1 | Cortex Spikes:   8 | DA: 0.00 | ACh: 1.00
 Tick:    700 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Tick:    800 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:    900 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:   1000 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
+Tick:    900 | Input Spikes:   1 | Cortex Spikes:   4 | DA: 0.00 | ACh: 1.00
+Tick:   1000 | Input Spikes:   0 | Cortex Spikes:   6 | DA: 0.00 | ACh: 1.00
 Tick:   1100 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Tick:   1200 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:   1300 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:   1400 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
+Tick:   1300 | Input Spikes:   0 | Cortex Spikes:   7 | DA: 0.00 | ACh: 1.00
+Tick:   1400 | Input Spikes:   0 | Cortex Spikes:   6 | DA: 0.00 | ACh: 1.00
 Tick:   1500 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Tick:   1600 | Input Spikes:   3 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:   1700 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
-Tick:   1800 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
+Tick:   1700 | Input Spikes:   1 | Cortex Spikes:   6 | DA: 0.00 | ACh: 1.00
+Tick:   1800 | Input Spikes:   1 | Cortex Spikes:  15 | DA: 0.00 | ACh: 1.00
 Tick:   1900 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Tick:   2000 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 1.00 | ACh: 1.00
 Tick:   2100 | Input Spikes:   1 | Cortex Spikes:   0 | DA: 0.60 | ACh: 1.00
@@ -120,10 +120,10 @@ Tick:   4700 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Tick:   4800 | Input Spikes:   4 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Tick:   4900 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 [Genesis] Simulation Complete.
-  Real Time: 0.10s
+  Real Time: 0.11s
   Bio Time:  5.00s
-  Speedup:   51.12x faster than real-time
-  Ticks/Sec: 51116.96
+  Speedup:   44.77x faster than real-time
+  Ticks/Sec: 44774.71
 ----------------------------------------------------------------
  [0;32m[Genesis] Workflow Completed Successfully. [0m
  CMake Warning (dev) at /usr/share/cmake-3.28/Modules/FetchContent.cmake:1331 (message):
@@ -139,22 +139,3 @@ Tick:   4900 | Input Spikes:   0 | Cortex Spikes:   0 | DA: 0.00 | ACh: 1.00
 Call Stack (most recent call first):
   CMakeLists.txt:34 (FetchContent_Declare)
 This warning is for project developers.  Use -Wno-dev to suppress it.
-
-In file included from /app/src/main.cpp:3:
-/app/src/sensory/cortex_layer.h: In member function ‘void genesis::CortexLayer::connect_to(const genesis::LayerMeta&, float, float)’:
-/app/src/sensory/cortex_layer.h:21:15: warning: unused variable ‘neurons’ [-Wunused-variable]
-   21 |         auto& neurons = const_cast<NeuronBlock&>(engine_.get_neurons()); // Unsafe, but needed for pos
-      |               ^~~~~~~
-/app/src/sensory/cortex_layer.h:20:38: warning: unused parameter ‘input_layer’ [-Wunused-parameter]
-   20 |     void connect_to(const LayerMeta& input_layer, float sigma, float weight_scale) {
-      |                     ~~~~~~~~~~~~~~~~~^~~~~~~~~~~
-/app/src/sensory/cortex_layer.h:20:57: warning: unused parameter ‘sigma’ [-Wunused-parameter]
-   20 |     void connect_to(const LayerMeta& input_layer, float sigma, float weight_scale) {
-      |                                                   ~~~~~~^~~~~
-/app/src/sensory/cortex_layer.h:20:70: warning: unused parameter ‘weight_scale’ [-Wunused-parameter]
-   20 |     void connect_to(const LayerMeta& input_layer, float sigma, float weight_scale) {
-      |                                                                ~~~~~~^~~~~~~~~~~~
-/app/src/main.cpp: In function ‘std::vector<float> create_vertical_line_stimulus()’:
-/app/src/main.cpp:47:23: warning: comparison of integer expressions of different signedness: ‘int’ and ‘long unsigned int’ [-Wsign-compare]
-   47 |     for (int y = 5; y < INPUT_HEIGHT - 5; ++y) {
-      |                     ~~^~~~~~~~~~~~~~~~~~

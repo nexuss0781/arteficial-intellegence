@@ -38,6 +38,7 @@ inline float gaussian_profile(float dist_sq, float sigma_sq) {
 // "Difference of Gaussians" or Mexican Hat Function
 // This is the mathematical model for center-surround receptive fields,
 // which is the basis of Lateral Inhibition.
+constexpr float INPUT_SYNAPTIC_STRENGTH_SCALE = 15.0f;
 // - A strong, narrow excitatory center (positive Gaussian).
 // - A weaker, wider inhibitory surround (negative Gaussian).
 // Returns a value typically in [-1, 1].
@@ -90,7 +91,7 @@ inline void connect_layers_spatial(
                 synapses.pre_indices[synapse_cursor] = pre_id;
                 synapses.post_indices[synapse_cursor] = post_id;
                 // Weight is proportional to the connection probability
-                synapses.weights[synapse_cursor] = prob * W_MAX; 
+                synapses.weights[synapse_cursor] = prob * INPUT_SYNAPTIC_STRENGTH_SCALE;
                 synapses.delays[synapse_cursor] = 1 + rng.next_int(0, 4); // Small random delay
                 synapses.is_inhibitory[synapse_cursor] = false;
                 synapses.eligibility_traces[synapse_cursor] = 0.0f;
