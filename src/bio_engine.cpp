@@ -305,10 +305,13 @@ std::vector<uint32_t> BioEngine::integrate_and_fire() {
         // Layer-specific logic (Phase II)
         // Input Layer (0) does not integrate/leak like Cortex; it's driven externally.
         if (neurons_.layer_id[i] == 0) {
-            // For Input Layer, Stimulus IS the voltage.
-            // If it exceeds threshold (injected by inject_stimulus), it fires.
-            // We just decay it massively so it doesn't sustain state without input?
-            // Or we treat it normally. Let's treat it normally for now.
+            // --- FIX: Input Layer Override ---
+            // The Input layer is a transducer, not a dynamic neuron. It should not leak.
+            // If external stimulus has pushed it over threshold, we clamp it to ensure it fires
+            // on this tick, otherwise the subsequent decay would prevent the fire event.
+            if (neurons_.membrane_potential[i] > V_THRESH_MV) {
+                neurons_.membrane_potential[i] = V_THRESH_MV + 1.0f; // Force fire
+            }
         }
 
         float& v = neurons_.membrane_potential[i];

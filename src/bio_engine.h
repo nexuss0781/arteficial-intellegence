@@ -69,6 +69,10 @@ public:
     const SynapseBlock& get_synapses() const { return synapses_; }
     const Context& get_context() const { return ctx_; }
     
+    // --- FIX: Expose Synapse Cursor ---
+    size_t get_synapse_cursor() const { return synapse_cursor_; }
+    void set_synapse_cursor(size_t cursor) { synapse_cursor_ = cursor; }
+
     // Access layer info for visualization
     const std::map<std::string, LayerMeta>& get_layers() const { return layers_; }
 
