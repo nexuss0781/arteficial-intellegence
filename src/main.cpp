@@ -76,7 +76,7 @@ int main() {
     utils::FastRNG rng(RNG_SEED);
     const auto& input_meta = engine.get_layers().at("Input");
     const auto& cortex_meta = engine.get_layers().at("Cortex");
-    spatial_utils::connect_layers_spatial(input_meta, neurons, cortex_meta, synapses, synapse_cursor, rng);
+    spatial_utils::connect_layers_spatial(input_meta, neurons, cortex_meta, synapses, synapse_cursor, rng)
     engine.set_synapse_cursor(synapse_cursor);
     engine.bake_topology();
     std::cout << "  > " << engine.get_synapse_cursor() << " synapses created." << std::endl;
