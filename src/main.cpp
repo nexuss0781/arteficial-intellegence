@@ -44,7 +44,7 @@ constexpr int PULSE_CYCLE_MS        = PULSE_ON_DURATION_MS + PULSE_OFF_DURATION_
 std::vector<float> create_vertical_line_stimulus() {
     std::vector<float> data(INPUT_SIZE, 0.0f);
     int center_x = INPUT_WIDTH / 2;
-    for (int y = 5; y < INPUT_HEIGHT - 5; ++y) {
+    for (size_t y = 5; y < INPUT_HEIGHT - 5; ++y) {
         data[y * INPUT_WIDTH + center_x] = 1.0f;
     }
     return data;
@@ -76,10 +76,10 @@ int main() {
     utils::FastRNG rng(RNG_SEED);
     const auto& input_meta = engine.get_layers().at("Input");
     const auto& cortex_meta = engine.get_layers().at("Cortex");
-    spatial_utils::connect_layers_spatial(input_meta, neurons, cortex_meta, synapses, synapse_cursor, rng);
-     engine.set_synapse_cursor(synapse_cursor);
+    spatial_utils::connect_layers_spatial(input_meta, neurons, cortex_meta, synapses, synapse_cursor, rng)
+    engine.set_synapse_cursor(synapse_cursor);
     engine.bake_topology();
-     std::cout << "  > " << engine.get_synapse_cursor() << " synapses created." << std::endl;
+    std::cout << "  > " << engine.get_synapse_cursor() << " synapses created." << std::endl;
 
     InputLayer input_layer(engine, input_meta);
     CortexLayer cortex_layer(engine, cortex_meta);

@@ -15,21 +15,6 @@ public:
     CortexLayer(BioEngine& engine, const LayerMeta& layer_meta)
         : engine_(engine), meta_(layer_meta) {}
 
-    // Main API: Connects this cortical layer to an input layer (e.g., Retina).
-    // This is where the initial "wiring" of the brain happens.
-    void connect_to(const LayerMeta& input_layer, float sigma, float weight_scale) {
-        auto& neurons = const_cast<NeuronBlock&>(engine_.get_neurons()); // Unsafe, but needed for pos
-        auto& synapses = const_cast<SynapseBlock&>(engine_.get_synapses());
-        
-        // This is a placeholder for a more robust connectivity API in BioEngine
-        // For now, we are directly manipulating the data.
-        size_t synapse_cursor = 0; // Fake cursor for this example
-        for(const auto& s : synapses.weights) if (s != 0) synapse_cursor++;
-        
-        // This would call a helper from spatial_utils to do the actual connection
-        // spatial_utils::connect_layers_spatial(...);
-    }
-    
     // Main API: Apply lateral inhibition to all neurons within this layer.
     // This function should be called by the main simulation loop on every tick
     // AFTER the standard integration step.
