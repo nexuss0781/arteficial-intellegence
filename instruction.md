@@ -1,4 +1,4 @@
-Here are the instructions to assemble and run **Project Genesis: Phase I**.
+Here are the instructions to assemble and run **Project Genesis: Phase III**.
 
 ### **1. Directory Structure**
 Ensure your files are arranged exactly as follows to match the `CMakeLists.txt`:
@@ -13,14 +13,23 @@ genesis_project/
 │   ├── utils.h
 │   ├── bio_engine.h
 │   ├── bio_engine.cpp
-│   └── main.cpp
+│   ├── main.cpp
+│   ├── sensory/
+│   │   ├── input_layer.h
+│   │   ├── cortex_layer.h
+│   │   ├── thalamus.h
+│   │   └── spatial_utils.h
+│   └── learning/
+│       └── hippocampus.h
 └── tests/
-    └── physics_tests.cpp
+    ├── physics_tests.cpp
+    ├── sensory_tests.cpp
+    └── memory_tests.cpp
 ```
 
 ### **2. Execution**
 
-Open your terminal in the `genesis_project` folder and run the automation script. This will compile the engine, validate the physics with GoogleTest, and launch the simulation.
+Open your terminal in the `genesis_project` folder and run the automation script. This will compile the engine, run all three validation suites, and launch the Pavlovian Learning experiment.
 
 ```bash
 # Make the script executable
@@ -34,14 +43,14 @@ chmod +x build_and_run.sh
 
 If successful, you will see the following cascade:
 
-1.  **[Genesis] Compiling...** (Builds the C++ binaries)
-2.  **[Genesis] Executing Physics Tests...** (Runs `physics_tests`)
-    *   *Look for:* `[  PASSED  ] 4 tests.`
-3.  **[Genesis] Launching Main Simulation...**
-    *   You will see the log output showing `Tick`, `Spikes`, `DA` (Dopamine), and `Avg ATP`.
-    *   At **Tick 2000**, Dopamine will jump to `1.0`.
-    *   At **Tick 4000**, Dopamine will drop to `0.0`.
-4.  **Performance Report**:
-    *   *Look for:* `Speedup: Xx faster than real-time`. This confirms the engine is efficient enough for massive scaling.
+1.  **Validation Suites**:
+    *   `Physics Integrity (Phase I)... [PASS]`
+    *   `Sensory Dynamics (Phase II)... [PASS]`
+    *   `Memory & Plasticity (Phase III)... [PASS]` (Verifies One-Shot Learning & Pattern Completion)
+2.  **Main Simulation**:
+    *   **T: 500-1500 (Learning)**: `VisIn`, `AudIn`, `VisCtx`, `AudCtx`, and `HIP` should all show high activity. `DA` (Dopamine) should be `1.0`.
+    *   **T: 3000-4000 (Recall)**: **Crucial Step.** You should see `VisIn` activity (The Bell), **NO** `AudIn` activity, but `AudCtx` should show activity (The Hallucination of Food). This proves associative recall.
+    *   **T: 4500+ (Sleep)**: The state changes to `SLEEP`. `VisIn` and `AudIn` go silent (Gating). `HIP` should show random bursts (Replay), driving weak activity in the Cortex.
 
-**Project Genesis Phase I is now ready for deployment.**	
+**Project Genesis Phase III is now ready for deployment.**
+

@@ -11,11 +11,13 @@
 
 namespace genesis {
 
-// Helper struct to track functional regions in the flat neuron array
+// Helper struct to track functional regions
 struct LayerMeta {
     uint32_t start_index;
     uint32_t count;
     uint8_t  layer_id;
+    // Phase III: Metadata for plasticity (Fast vs Slow learning regions)
+    float    plasticity_scale; 
 };
 
 class BioEngine {
@@ -27,53 +29,49 @@ public:
     // API: Lifecycle & Construction
     // -------------------------------------------------------------------------
 
-    // Phase I (Legacy/Test): Initialize with random topology.
-    // Keeps the old tests working.
     void init(size_t neuron_count, size_t synapse_density, uint64_t seed);
-
-    // Phase II (Structured): Initialize empty memory arena.
-    // Call create_layer() and connect_layers() afterwards.
     void init_structured(size_t max_neurons, size_t max_synapses, uint64_t seed);
 
-    // Phase II: Define a functional region (e.g., "Retina", "V1").
-    // Returns the starting index of the layer in the global neuron array.
-    uint32_t create_layer(const std::string& name, size_t count, uint8_t layer_type);
+    // Phase III Update: Added plasticity_scale
+    // Default 1.0f = Standard Cortex. 
+    // Use 10.0f for Hippocampus (One-Shot Learning).
+    uint32_t create_layer(const std::string& name, size_t count, uint8_t layer_type, float plasticity_scale = 1.0f);
 
-    // Phase II: Connect two layers.
-    // This allows specific projection logic (Random, Gaussian, etc.) to be implemented
-    // in the source file or via helper builders.
-    // For now, exposes a generic connector for the engine to manage indexing.
-    // Returns number of synapses created.
     size_t connect_full(const std::string& pre_name, const std::string& post_name, 
                         float weight_scale, uint8_t delay_ticks);
 
-    // Finalize topology acceleration structures after manually adding connections.
+    // Phase III New: Connect a layer to itself.
+    // Creates Recurrent Collaterals essential for Pattern Completion (Attractor Dynamics).
+    // density: 0.0 to 1.0 (Fraction of possible self-connections to create).
+    size_t connect_recurrent(const std::string& layer_name, float weight_scale, 
+                             uint8_t delay_ticks, float density);
+
     void bake_topology();
 
     // -------------------------------------------------------------------------
-    // API: Simulation
+    // API: Simulation & State Control
     // -------------------------------------------------------------------------
 
-    // The Main Physics Loop.
-    // Now includes:
-    // 5. Process Delayed Spikes (Axonal transmission)
     void tick();
+
+    // Phase III New: Switch between AWAKE (Learning) and SLEEP (Consolidation).
+    void set_state(EngineState state);
 
     // -------------------------------------------------------------------------
     // API: Interaction
     // -------------------------------------------------------------------------
     void inject_stimulus(uint32_t neuron_id, float current_mv);
     void set_dopamine(float level);
+    
+    // Phase III: Acetylcholine controls input gain (Attention)
+    void set_acetylcholine(float level);
 
+    // --- Accessors ---
     const NeuronBlock& get_neurons() const { return neurons_; }
     const SynapseBlock& get_synapses() const { return synapses_; }
     const Context& get_context() const { return ctx_; }
-    
-    // --- FIX: Expose Synapse Cursor ---
     size_t get_synapse_cursor() const { return synapse_cursor_; }
     void set_synapse_cursor(size_t cursor) { synapse_cursor_ = cursor; }
-
-    // Access layer info for visualization
     const std::map<std::string, LayerMeta>& get_layers() const { return layers_; }
 
 private:
@@ -81,14 +79,17 @@ private:
     // Physics Modules
     // -------------------------------------------------------------------------
     void update_metabolism();
+    
+    // Phase III Update: Now uses per-neuron plasticity_scale
     void update_synapses();
+    
     std::vector<uint32_t> integrate_and_fire();
-    
-    // Phase II Update: Pushes events to DelayQueue instead of immediate write
     void propagate_spikes(const std::vector<uint32_t>& firing_indices);
-    
-    // Phase II New: Consumes DelayQueue and updates Post-Neuron Voltage
     void process_delayed_spikes();
+
+    // Phase III New: Spontaneous activity generator.
+    // In SLEEP mode, injects noise to trigger "Replay" (Sharp-Wave Ripples).
+    void process_sleep_dynamics();
 
     // -------------------------------------------------------------------------
     // Data
@@ -98,12 +99,10 @@ private:
     TopologyIndex topology_;
     Context       ctx_;
     
-    // Phase II: Temporal Buffer (Axonal Transit)
     SpikeDelayQueue delay_queue_;
-
-    // Phase II: Structural Metadata
     std::map<std::string, LayerMeta> layers_;
-    size_t neuron_cursor_ = 0;  // Tracks allocation in flat array
+    
+    size_t neuron_cursor_ = 0; 
     size_t synapse_cursor_ = 0;
     
     std::unique_ptr<utils::FastRNG> rng_;

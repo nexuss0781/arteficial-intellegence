@@ -9,6 +9,14 @@
 namespace genesis {
 
 // -----------------------------------------------------------------------------
+// Phase III: Engine State Machine
+// -----------------------------------------------------------------------------
+enum class EngineState {
+    AWAKE, // Normal sensory processing and learning
+    SLEEP  // Sensory gating, spontaneous replay, consolidation
+};
+
+// -----------------------------------------------------------------------------
 // 1. Data-Oriented Design: Struct-of-Arrays (SoA)
 // -----------------------------------------------------------------------------
 struct alignas(64) NeuronBlock {
@@ -27,14 +35,16 @@ struct alignas(64) NeuronBlock {
     // Phase I: Homeostasis
     std::vector<float>   avg_firing_rate;
 
-    // --- PHASE II EXTENSIONS: SPACE & STRUCTURE ---
-    // Spatial Topology (for Retinotopy and Lateral Inhibition)
-    std::vector<float>   pos_x;                // Normalized [0.0, 1.0] or Grid Index
+    // Phase II: Space & Structure
+    std::vector<float>   pos_x;
     std::vector<float>   pos_y;
-    
-    // Layer Identification (0=Input, 1=Thalamus, 2=Cortex, etc.)
-    // Allows specific logic per region (e.g., Input layer doesn't integrate, it transduces)
     std::vector<uint8_t> layer_id;
+
+    // --- PHASE III EXTENSIONS: MEMORY ---
+    // Plasticity Scalar: How "fast" does this neuron learn?
+    // Hippocampus neurons will have high values (e.g., 10.0) for one-shot learning.
+    // Cortex neurons will have low values (e.g., 1.0) for slow statistical integration.
+    std::vector<float>   plasticity_scale;
 
     void resize(size_t n) {
         membrane_potential.resize(n);
@@ -45,10 +55,12 @@ struct alignas(64) NeuronBlock {
         last_spike_time.resize(n);
         avg_firing_rate.resize(n);
         
-        // Phase II
         pos_x.resize(n);
         pos_y.resize(n);
         layer_id.resize(n);
+        
+        // Phase III
+        plasticity_scale.resize(n);
     }
 };
 
@@ -62,9 +74,7 @@ struct alignas(64) SynapseBlock {
     std::vector<float>    eligibility_traces;
     std::vector<bool>     is_inhibitory;
 
-    // --- PHASE II EXTENSIONS: TIME ---
-    // Axonal Delay: How many ticks before the signal hits the post-neuron?
-    // Essential for sequence detection (A->B vs B->A).
+    // Phase II: Time
     std::vector<uint8_t>  delays;
 
     void resize(size_t n) {
@@ -73,8 +83,6 @@ struct alignas(64) SynapseBlock {
         weights.resize(n);
         eligibility_traces.resize(n);
         is_inhibitory.resize(n);
-        
-        // Phase II
         delays.resize(n);
     }
 };
@@ -93,17 +101,14 @@ struct TopologyIndex {
 };
 
 // -----------------------------------------------------------------------------
-// 3. Temporal Integration Buffer (Phase II NEW)
+// 3. Temporal Integration Buffer
 // -----------------------------------------------------------------------------
-// Represents a "spike in flight".
 struct PendingSpike {
     uint32_t target_neuron_id;
-    float    signal_strength; // Weight * Gain (+/-)
-    uint8_t  ticks_remaining; // Countdown
+    float    signal_strength; 
+    uint8_t  ticks_remaining;
 };
 
-// A ring buffer or bucket queue could optimize this, but a deque is sufficient 
-// for Phase II prototyping.
 using SpikeDelayQueue = std::deque<PendingSpike>;
 
 // -----------------------------------------------------------------------------
@@ -115,6 +120,9 @@ struct Context {
 
     float dopamine      = 0.0f;
     float acetylcholine = 1.0f;
+    
+    // Phase III: Current Brain State
+    EngineState state = EngineState::AWAKE;
     
     uint64_t total_spikes_this_tick = 0;
 };
