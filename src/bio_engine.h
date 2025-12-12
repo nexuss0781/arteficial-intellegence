@@ -68,6 +68,7 @@ public:
 
     // --- Accessors ---
     const NeuronBlock& get_neurons() const { return neurons_; }
+    NeuronBlock& get_neurons() { return neurons_; }
     const SynapseBlock& get_synapses() const { return synapses_; }
     const Context& get_context() const { return ctx_; }
     size_t get_synapse_cursor() const { return synapse_cursor_; }

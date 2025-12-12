@@ -333,15 +333,22 @@ std::vector<uint32_t> BioEngine::integrate_and_fire() {
         }
 
         float& v = neurons_.membrane_potential[i];
-        float v_diff = v - V_REST_MV;
-        v_diff *= VOLTAGE_DECAY_FACTOR;
-        v = V_REST_MV + v_diff;
+        bool did_fire = false;
 
         if (v >= V_THRESH_MV) {
             if (neurons_.atp_level[i] >= ATP_MIN_TO_FIRE) {
                 fired.push_back(static_cast<uint32_t>(i));
                 neurons_.has_fired[i] = true;
+                did_fire = true;
             }
+        }
+
+        // If the neuron did not fire, its potential leaks back to rest.
+        // If it did fire, it gets reset later in propagate_spikes.
+        if (!did_fire) {
+            float v_diff = v - V_REST_MV;
+            v_diff *= VOLTAGE_DECAY_FACTOR;
+            v = V_REST_MV + v_diff;
         }
     }
     return fired;
