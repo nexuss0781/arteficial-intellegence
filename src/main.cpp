@@ -7,9 +7,11 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <chrono> // For performance report
 
-// --- ADDITION: Simple setter in bio_engine.h/cpp is assumed to exist ---
-/* In bio_engine.h:
+// --- NOTE: Assumes a simple setter for acetylcholine exists in BioEngine ---
+/*
+In bio_engine.h:
 public:
     void set_acetylcholine(float level);
 
@@ -35,19 +37,15 @@ constexpr uint64_t RNG_SEED       = 2024;
 constexpr int    SIM_TICKS        = 5000;
 constexpr int    LOG_INTERVAL     = 100;
 
-// --- FIX: Define Pulse Timing for Stimulus Presentation ---
 constexpr int PULSE_ON_DURATION_MS  = 200;
 constexpr int PULSE_OFF_DURATION_MS = 200;
 constexpr int PULSE_CYCLE_MS        = PULSE_ON_DURATION_MS + PULSE_OFF_DURATION_MS;
 
-// Helper to create a simple visual stimulus
 std::vector<float> create_vertical_line_stimulus() {
     std::vector<float> data(INPUT_SIZE, 0.0f);
     int center_x = INPUT_WIDTH / 2;
     for (int y = 5; y < INPUT_HEIGHT - 5; ++y) {
         data[y * INPUT_WIDTH + center_x] = 1.0f;
-        data[y * INPUT_WIDTH + center_x - 1] = 0.5f;
-        data[y * INPUT_WIDTH + center_x + 1] = 0.5f;
     }
     return data;
 }
@@ -84,21 +82,22 @@ int main() {
 
     InputLayer input_layer(engine, input_meta);
     CortexLayer cortex_layer(engine, cortex_meta);
-    Thalamus thalamus(engine, input_meta); 
+    Thalamus thalamus(engine, input_meta);
 
     auto stimulus = create_vertical_line_stimulus();
     
     std::cout << "[Genesis] Network ready. Starting Simulation..." << std::endl;
     
+    // --- FIX: Add Performance Timers ---
+    auto start_time = std::chrono::high_resolution_clock::now();
+
     for (int t = 0; t < SIM_TICKS; ++t) {
         
-        // --- FIX: Pulsed Stimulus & Attention Modulation ---
         bool is_stimulus_on = (t % PULSE_CYCLE_MS) < PULSE_ON_DURATION_MS;
 
         if (is_stimulus_on) {
             input_layer.present_data(stimulus, 100.0f);
-            // Assuming a simple setter exists:
-            // engine.set_acetylcholine(2.0f); 
+            // engine.set_acetylcholine(2.0f);
         } else {
             // engine.set_acetylcholine(1.0f);
         }
@@ -106,15 +105,24 @@ int main() {
         if (t == 2000) engine.set_dopamine(1.0f);
         if (t == 4000) engine.set_dopamine(0.0f);
 
-        engine.tick();
-        thalamus.apply_gating();
+        // --- FIX: Correct Order of Operations ---
+        // 1. Thalamus gates the potential *before* the physics tick.
+        //    (Requires thalamus.h logic to check voltage, not has_fired flag)
+        thalamus.apply_gating(); 
+        
+        // 2. The main physics engine integrates inputs and fires neurons.
+        engine.tick(); 
+        
+        // 3. Cortex applies feedback inhibition *after* neurons have fired.
         cortex_layer.apply_lateral_inhibition();
         
         if (t % LOG_INTERVAL == 0) {
             const auto& ctx = engine.get_context();
             uint32_t input_spikes = 0;
             uint32_t cortex_spikes = 0;
-            for (uint32_t i=0; i<engine.get_layers().at("Cortex").start_index + engine.get_layers().at("Cortex").count; ++i) {
+            size_t total_neurons_in_use = engine.get_layers().at("Input").count + engine.get_layers().at("Cortex").count;
+            for (uint32_t i=0; i < total_neurons_in_use; ++i) {
+                if(i >= TOTAL_NEURONS) continue; // Safety
                 if (neurons.has_fired[i]) {
                     if (neurons.layer_id[i] == 0) input_spikes++;
                     else if (neurons.layer_id[i] == 2) cortex_spikes++;
@@ -129,7 +137,19 @@ int main() {
         }
     }
 
+    auto end_time = std::chrono::high_resolution_clock::now();
     std::cout << "[Genesis] Simulation Complete." << std::endl;
+
+    // --- FIX: Re-add Performance Report ---
+    std::chrono::duration<double> elapsed = end_time - start_time;
+    double real_time_sec = elapsed.count();
+    double biological_time_sec = SIM_TICKS / 1000.0;
+    double speedup = biological_time_sec / real_time_sec;
+
+    std::cout << "  Real Time: " << real_time_sec << "s" << std::endl;
+    std::cout << "  Bio Time:  " << biological_time_sec << "s" << std::endl;
+    std::cout << "  Speedup:   " << speedup << "x faster than real-time" << std::endl;
+    std::cout << "  Ticks/Sec: " << (SIM_TICKS / real_time_sec) << std::endl;
 
     return 0;
 }
