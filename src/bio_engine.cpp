@@ -214,7 +214,7 @@ void BioEngine::tick() {
     ctx_.dopamine *= DOPAMINE_DECAY_FACTOR;
     if (ctx_.dopamine < 0.001f) ctx_.dopamine = 0.0f;
 
-    // 1. Process Delayed Spikes (Axonal Transmission)
+    // 1. Process Delayed Spikes (Axonal Transmission) - decrement timers, deliver those that reach 0
     process_delayed_spikes();
 
     // 2. Sleep Dynamics (Phase III)
@@ -230,6 +230,10 @@ void BioEngine::tick() {
     ctx_.total_spikes_this_tick = firing_indices.size();
 
     propagate_spikes(firing_indices);
+    
+    // 4. Process immediate spikes (delay=0) for next tick's integration
+    // These are added to membrane potential and will be considered in next tick's integrate_and_fire
+    process_immediate_spikes();
 }
 
 // -----------------------------------------------------------------------------
@@ -240,6 +244,19 @@ void BioEngine::process_delayed_spikes() {
     auto it = std::remove_if(delay_queue_.begin(), delay_queue_.end(), 
         [this](PendingSpike& s) {
             if (s.ticks_remaining > 0) s.ticks_remaining--;
+            if (s.ticks_remaining == 0) {
+                neurons_.membrane_potential[s.target_neuron_id] += s.signal_strength;
+                return true; 
+            }
+            return false; 
+        });
+    delay_queue_.erase(it, delay_queue_.end());
+}
+
+void BioEngine::process_immediate_spikes() {
+    // Process spikes with 0 delay immediately (before integration)
+    auto it = std::remove_if(delay_queue_.begin(), delay_queue_.end(), 
+        [this](PendingSpike& s) {
             if (s.ticks_remaining == 0) {
                 neurons_.membrane_potential[s.target_neuron_id] += s.signal_strength;
                 return true; 

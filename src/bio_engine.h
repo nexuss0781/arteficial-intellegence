@@ -87,6 +87,9 @@ private:
     std::vector<uint32_t> integrate_and_fire();
     void propagate_spikes(const std::vector<uint32_t>& firing_indices);
     void process_delayed_spikes();
+    
+    // Process immediate spikes (delay=0) after propagation
+    void process_immediate_spikes();
 
     // Phase III New: Spontaneous activity generator.
     // In SLEEP mode, injects noise to trigger "Replay" (Sharp-Wave Ripples).

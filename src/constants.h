@@ -70,8 +70,8 @@ constexpr size_t INPUT_WIDTH  = 28;
 constexpr size_t INPUT_HEIGHT = 28;
 constexpr size_t INPUT_SIZE   = INPUT_WIDTH * INPUT_HEIGHT;
 
-constexpr float INHIBITION_RADIUS   = 2.0f; 
-constexpr float INHIBITION_STRENGTH = 2.0f; 
+constexpr float INHIBITION_RADIUS   = 3.0f; 
+constexpr float INHIBITION_STRENGTH = 5.0f; 
 
 
 // -----------------------------------------------------------------------------
