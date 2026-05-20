@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/physics_tests.dir/tests/physics_tests.cpp.o -o physics_tests  libbio_core.a lib/libgtest_main.a lib/libgtest.a 

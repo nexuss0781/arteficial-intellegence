@@ -1,2 +1,0 @@
-/usr/bin/ar qc libbio_core.a CMakeFiles/bio_core.dir/src/bio_engine.cpp.o CMakeFiles/bio_core.dir/src/meta_cognition.cpp.o
-/usr/bin/ranlib libbio_core.a

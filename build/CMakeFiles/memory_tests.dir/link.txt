@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/memory_tests.dir/tests/memory_tests.cpp.o -o memory_tests  libbio_core.a lib/libgtest_main.a lib/libgtest.a 

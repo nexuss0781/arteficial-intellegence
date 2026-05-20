@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/meta_cognition_demo.dir/src/demo_meta_cognition.cpp.o -o meta_cognition_demo  libbio_core.a 

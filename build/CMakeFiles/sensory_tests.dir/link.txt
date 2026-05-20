@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/sensory_tests.dir/tests/sensory_tests.cpp.o -o sensory_tests  libbio_core.a lib/libgtest_main.a lib/libgtest.a 
