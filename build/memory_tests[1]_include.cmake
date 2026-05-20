@@ -1,0 +1,5 @@
+if(EXISTS "/workspace/build/memory_tests[1]_tests.cmake")
+  include("/workspace/build/memory_tests[1]_tests.cmake")
+else()
+  add_test(memory_tests_NOT_BUILT memory_tests_NOT_BUILT)
+endif()

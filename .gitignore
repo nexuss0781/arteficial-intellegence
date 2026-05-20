@@ -1,0 +1,43 @@
+```
+# Build artifacts
+build/
+*.o
+*.obj
+*.d
+*.so
+*.a
+*.dylib
+*.dll
+*.exe
+
+# CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Dependencies
+_deps/
+
+# Test binaries
+*_tests
+*_demo
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+```
